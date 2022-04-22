@@ -2,7 +2,7 @@
 
 ## Description
 
-This is a simple test program to measure the memcopy bandwidth of the GPU and memcpy bandwidth across PCI-e. This test application is capable of measuring device to device copy bandwidth, host to device copy bandwidth for pageable and page-locked memory, and device to host copy bandwidth for pageable and page-locked memory.
+This is a simple test program to measure the memcopy bandwidth of the GPU and memcpy bandwidth across PCI-e. This test application is capable of measuring device to device copy bandwidth (**both inter device and intra device**), host to device copy bandwidth for pageable and page-locked memory, and device to host copy bandwidth for pageable and page-locked memory.
 
 ## Key Concepts
 
@@ -23,26 +23,15 @@ x86_64, ppc64le, armv7l
 ## CUDA APIs involved
 
 ### [CUDA Runtime API](http://docs.nvidia.com/cuda/cuda-runtime-api/index.html)
-cudaFree, cudaEventRecord, cudaMallocHost, cudaHostAlloc, cudaEventCreate, cudaGetDeviceCount, cudaEventElapsedTime, cudaDeviceSynchronize, cudaFreeHost, cudaMalloc, cudaEventDestroy, cudaSetDevice, cudaMemcpyAsync, cudaMemcpy, cudaGetErrorString, cudaGetDeviceProperties
+cudaFree, cudaEventRecord, cudaMallocHost, cudaHostAlloc, cudaEventCreate, cudaGetDeviceCount, cudaEventElapsedTime, cudaDeviceSynchronize, cudaFreeHost, cudaMalloc, cudaEventDestroy, cudaSetDevice, cudaMemcpyAsync, cudaMemcpy, cudaGetErrorString, cudaGetDeviceProperties, cudaMemcpyPeerAsync, cudaDeviceCanAccessPeer, cudaDeviceEnablePeerAccess
 
 ## Prerequisites
 
 Download and install the [CUDA Toolkit 11.6](https://developer.nvidia.com/cuda-downloads) for your corresponding platform.
 
-## Build and Run
+## Build
 
-### Windows
-The Windows samples are built using the Visual Studio IDE. Solution files (.sln) are provided for each supported version of Visual Studio, using the format:
-```
-*_vs<version>.sln - for Visual Studio <version>
-```
-Each individual sample has its own set of solution files in its directory:
-
-To build/examine all the samples at once, the complete solution files should be used. To build/examine a single sample, the individual sample solution files should be used.
-> **Note:** Some samples require that the Microsoft DirectX SDK (June 2010 or newer) be installed and that the VC++ directory paths are properly set up (**Tools > Options...**). Check DirectX Dependencies section for details."
-
-### Linux
-The Linux samples are built using makefiles. To use the makefiles, change the current directory to the sample directory you wish to build, and run make:
+The samples are built using makefiles. To use the makefiles, change the current directory to the sample directory you wish to build, and run make:
 ```
 $ cd <sample_dir>
 $ make
@@ -66,5 +55,8 @@ The samples makefiles can take advantage of certain options:
     $ make HOST_COMPILER=g++
 ```
 
-## References (for more details)
+## Command Line Arguments
 
+```
+./bandwidthTest --help
+```
