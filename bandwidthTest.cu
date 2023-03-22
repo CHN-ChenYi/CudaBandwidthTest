@@ -118,7 +118,7 @@ float testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode,
 float testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode,
                                bool wc);
 float testIntraDeviceTransfer(unsigned int memSize);
-float testInterDeviceTransfer(unsigned int memSize);
+float testInterDeviceTransfer(unsigned int memSize, int startDevice, int endDevice);
 void printResultsReadable(unsigned int *memSizes, double *bandwidths,
                           unsigned int count, memcpyKind kind,
                           memoryMode memMode, int iNumDevs, bool wc);
@@ -225,7 +225,10 @@ int runTest(const int argc, const char **argv) {
       startDevice = 0;
       endDevice = deviceCount - 1;
     } else {
-      startDevice = endDevice = atoi(device);
+      if (strchr(device, ','))
+        sscanf(device, "%d,%d", &startDevice, &endDevice);
+      else
+        startDevice = endDevice = atoi(device);
 
       if (startDevice >= deviceCount || startDevice < 0) {
         printf(
@@ -323,14 +326,14 @@ int runTest(const int argc, const char **argv) {
   }
 
   if (inter) {
-    printf("Device will be set as 0 and 1 during Inter Device testing\n\n");
+    printf("Devices used in inter transfer: %d and %d\n\n", startDevice, endDevice);
     int canAccessPeer = 0;
-    cudaDeviceCanAccessPeer(&canAccessPeer, 0, 1);
+    cudaDeviceCanAccessPeer(&canAccessPeer, startDevice, endDevice);
     if (canAccessPeer) {
-      cudaSetDevice(0);
-      cudaDeviceEnablePeerAccess(1, 0);
-      cudaSetDevice(1);
-      cudaDeviceEnablePeerAccess(0, 0);
+      cudaSetDevice(startDevice);
+      cudaDeviceEnablePeerAccess(endDevice, 0);
+      cudaSetDevice(endDevice);
+      cudaDeviceEnablePeerAccess(startDevice, 0);
       printf(" Inter Device uses P2P transfer\n\n");
     } else {
       printf(" Inter Device uses ordinary transfer\n\n");
@@ -537,7 +540,7 @@ void testBandwidthArray(unsigned int *memSizes, unsigned int count,
   if (kind == INTER_DEVICE) {
     // run each of the copies
     for (unsigned int i = 0; i < count; i++) {
-      bandwidths[i] += testInterDeviceTransfer(memSizes[i]);
+      bandwidths[i] += testInterDeviceTransfer(memSizes[i], startDevice, endDevice);
       printf(".");
       fflush(0);
     }
@@ -873,21 +876,21 @@ float testIntraDeviceTransfer(unsigned int memSize) {
 ///////////////////////////////////////////////////////////////////////////////
 //! test the bandwidth of a Inter Device memcopy of a specific size
 ///////////////////////////////////////////////////////////////////////////////
-float testInterDeviceTransfer(unsigned int memSize) {
+float testInterDeviceTransfer(unsigned int memSize, int startDevice, int endDevice) {
   StopWatchInterface *timer = NULL;
   float elapsedTimeInMs = 0.0f;
   float bandwidthInGBs = 0.0f;
   cudaEvent_t start, stop;
 
-  cudaSetDevice(0);
+  cudaSetDevice(startDevice);
   sdkCreateTimer(&timer);
   checkCudaErrors(cudaEventCreate(&start));
   checkCudaErrors(cudaEventCreate(&stop));
 
   cudaStream_t streams[2];
-  cudaSetDevice(0);
+  cudaSetDevice(startDevice);
   checkCudaErrors(cudaStreamCreate(&streams[0]));
-  cudaSetDevice(1);
+  cudaSetDevice(endDevice);
   checkCudaErrors(cudaStreamCreate(&streams[1]));
 
   // allocate host memory
@@ -904,7 +907,7 @@ float testInterDeviceTransfer(unsigned int memSize) {
   }
 
   // allocate device memory
-  cudaSetDevice(0);
+  cudaSetDevice(startDevice);
   unsigned char *d_idata_0;
   checkCudaErrors(cudaMalloc((void **)&d_idata_0, memSize));
   checkCudaErrors(
@@ -912,7 +915,7 @@ float testInterDeviceTransfer(unsigned int memSize) {
   unsigned char *d_odata_1;
   checkCudaErrors(cudaMalloc((void **)&d_odata_1, memSize));
 
-  cudaSetDevice(1);
+  cudaSetDevice(endDevice);
   unsigned char *d_odata_0;
   checkCudaErrors(cudaMalloc((void **)&d_odata_0, memSize));
   unsigned char *d_idata_1;
@@ -921,15 +924,15 @@ float testInterDeviceTransfer(unsigned int memSize) {
       cudaMemcpy(d_idata_1, h_idata, memSize, cudaMemcpyHostToDevice));
 
   // run the memcopy
-  cudaSetDevice(0);
+  cudaSetDevice(startDevice);
   sdkStartTimer(&timer);
   checkCudaErrors(cudaEventRecord(start, 0));
 
   for (unsigned int i = 0; i < MEMCOPY_ITERATIONS; i++) {
     checkCudaErrors(
-        cudaMemcpyPeerAsync(d_odata_0, 1, d_idata_0, 0, memSize, streams[0]));
+        cudaMemcpyPeerAsync(d_odata_0, endDevice, d_idata_0, startDevice, memSize, streams[0]));
     checkCudaErrors(
-        cudaMemcpyPeerAsync(d_odata_1, 0, d_idata_1, 1, memSize, streams[1]));
+        cudaMemcpyPeerAsync(d_odata_1, startDevice, d_idata_1, endDevice, memSize, streams[1]));
     checkCudaErrors(cudaStreamSynchronize(streams[0]));
     checkCudaErrors(cudaStreamSynchronize(streams[1]));
   }
@@ -963,7 +966,7 @@ float testInterDeviceTransfer(unsigned int memSize) {
   checkCudaErrors(cudaFree(d_odata_1));
   checkCudaErrors(cudaStreamDestroy(streams[0]));
   checkCudaErrors(cudaStreamDestroy(streams[1]));
-  cudaSetDevice(1);
+  cudaSetDevice(endDevice);
   checkCudaErrors(cudaFree(d_odata_0));
   checkCudaErrors(cudaFree(d_idata_1));
 
@@ -1061,6 +1064,7 @@ void printHelp(void) {
   printf("--device=[deviceno]\tSpecify the device device to be used\n");
   printf("  all - compute cumulative bandwidth on all the devices\n");
   printf("  0,1,2,...,n - Specify any particular device to be used\n");
+  printf("  1,2 - Specify two devices to test inter device transfers\n");
   printf("--memory=[MEMMODE]\tSpecify which memory mode to use\n");
   printf("  pageable - pageable memory\n");
   printf("  pinned   - non-pageable system memory\n");
@@ -1073,8 +1077,7 @@ void printHelp(void) {
   printf("--dtoh\tMeasure device to host transfers\n");
   printf("--intra\tMeasure intra device transfers\n");
   printf(
-      "--inter\tMeasure inter device transfers(device will be set to 0 and "
-      "1)\n");
+      "--inter\tMeasure inter device transfers\n");
 #if CUDART_VERSION >= 2020
   printf("--wc\tAllocate pinned memory as write-combined\n");
 #endif
