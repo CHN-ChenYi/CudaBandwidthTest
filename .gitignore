@@ -1,4 +1,4 @@
 .vscode/*
 bandwidthTest.o
-bandwidthTest.cu
+bandwidthTest
 bin/*
