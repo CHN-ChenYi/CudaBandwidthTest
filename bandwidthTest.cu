@@ -96,35 +96,35 @@ char **pArgv = NULL;
 ////////////////////////////////////////////////////////////////////////////////
 // declaration, forward
 int runTest(const int argc, const char **argv);
-void testBandwidth(unsigned int start, unsigned int end, unsigned int increment,
+void testBandwidth(unsigned long long start, unsigned long long end, unsigned long long increment,
                    testMode mode, memcpyKind kind, printMode printmode,
-                   memoryMode memMode, int startDevice, int endDevice, bool wc);
-void testBandwidthQuick(unsigned int size, memcpyKind kind, printMode printmode,
-                        memoryMode memMode, int startDevice, int endDevice,
+                   memoryMode memMode, long long startDevice, long long endDevice, bool wc);
+void testBandwidthQuick(unsigned long long size, memcpyKind kind, printMode printmode,
+                        memoryMode memMode, long long startDevice, long long endDevice,
                         bool wc);
-void testBandwidthRange(unsigned int start, unsigned int end,
-                        unsigned int increment, memcpyKind kind,
+void testBandwidthRange(unsigned long long start, unsigned long long end,
+                        unsigned long long increment, memcpyKind kind,
                         printMode printmode, memoryMode memMode,
-                        int startDevice, int endDevice, bool wc);
+                        long long startDevice, long long endDevice, bool wc);
 void testBandwidthShmoo(memcpyKind kind, printMode printmode,
-                        memoryMode memMode, int startDevice, int endDevice,
+                        memoryMode memMode, long long startDevice, long long endDevice,
                         bool wc);
-void testBandwidthArray(unsigned int *memSizes, unsigned int count,
+void testBandwidthArray(unsigned long long *memSizes, unsigned long long count,
                         memcpyKind kind, printMode printmode,
-                        memoryMode memMode, int startDevice, int endDevice,
+                        memoryMode memMode, long long startDevice, long long endDevice,
                         bool wc);
-float testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode,
+float testDeviceToHostTransfer(unsigned long long memSize, memoryMode memMode,
                                bool wc);
-float testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode,
+float testHostToDeviceTransfer(unsigned long long memSize, memoryMode memMode,
                                bool wc);
-float testIntraDeviceTransfer(unsigned int memSize);
-float testInterDeviceTransfer(unsigned int memSize, int startDevice, int endDevice);
-void printResultsReadable(unsigned int *memSizes, double *bandwidths,
-                          unsigned int count, memcpyKind kind,
-                          memoryMode memMode, int iNumDevs, bool wc);
-void printResultsCSV(unsigned int *memSizes, double *bandwidths,
-                     unsigned int count, memcpyKind kind, memoryMode memMode,
-                     int iNumDevs, bool wc);
+float testIntraDeviceTransfer(unsigned long long memSize);
+float testInterDeviceTransfer(unsigned long long memSize, long long startDevice, long long endDevice);
+void printResultsReadable(unsigned long long *memSizes, double *bandwidths,
+                          unsigned long long count, memcpyKind kind,
+                          memoryMode memMode, long long iNumDevs, bool wc);
+void printResultsCSV(unsigned long long *memSizes, double *bandwidths,
+                     unsigned long long count, memcpyKind kind, memoryMode memMode,
+                     long long iNumDevs, bool wc);
 void printHelp(void);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -161,11 +161,11 @@ int main(int argc, char **argv) {
 // Parse args, run the appropriate tests
 ///////////////////////////////////////////////////////////////////////////////
 int runTest(const int argc, const char **argv) {
-  int start = DEFAULT_SIZE;
-  int end = DEFAULT_SIZE;
-  int startDevice = 0;
-  int endDevice = 0;
-  int increment = DEFAULT_INCREMENT;
+  long long start = DEFAULT_SIZE;
+  long long end = DEFAULT_SIZE;
+  long long startDevice = 0;
+  long long endDevice = 0;
+  long long increment = DEFAULT_INCREMENT;
   testMode mode = QUICK_MODE;
   bool htod = false;
   bool dtoh = false;
@@ -226,13 +226,13 @@ int runTest(const int argc, const char **argv) {
       endDevice = deviceCount - 1;
     } else {
       if (strchr(device, ','))
-        sscanf(device, "%d,%d", &startDevice, &endDevice);
+        sscanf(device, "%lld,%lld", &startDevice, &endDevice);
       else
         startDevice = endDevice = atoi(device);
 
       if (startDevice >= deviceCount || startDevice < 0) {
         printf(
-            "\n!!!!!Invalid GPU number %d given hence default gpu %d will be "
+            "\n!!!!!Invalid GPU number %lld given hence default gpu %lld will be "
             "used !!!!!\n",
             startDevice, 0);
         startDevice = endDevice = 0;
@@ -242,13 +242,13 @@ int runTest(const int argc, const char **argv) {
 
   printf("Running on...\n\n");
 
-  for (int currentDevice = startDevice; currentDevice <= endDevice;
+  for (long long currentDevice = startDevice; currentDevice <= endDevice;
        currentDevice++) {
     cudaDeviceProp deviceProp;
     cudaError_t error_id = cudaGetDeviceProperties(&deviceProp, currentDevice);
 
     if (error_id == cudaSuccess) {
-      printf(" Device %d: %s\n", currentDevice, deviceProp.name);
+      printf(" Device %lld: %s\n", currentDevice, deviceProp.name);
 
       if (deviceProp.computeMode == cudaComputeModeProhibited) {
         fprintf(stderr,
@@ -326,7 +326,7 @@ int runTest(const int argc, const char **argv) {
   }
 
   if (inter) {
-    printf("Devices used in inter transfer: %d and %d\n\n", startDevice, endDevice);
+    printf("Devices used in inter transfer: %lld and %lld\n\n", startDevice, endDevice);
     int canAccessPeer = 0;
     cudaDeviceCanAccessPeer(&canAccessPeer, startDevice, endDevice);
     if (canAccessPeer) {
@@ -342,7 +342,8 @@ int runTest(const int argc, const char **argv) {
 
   if (RANGE_MODE == mode) {
     if (checkCmdLineFlag(argc, (const char **)argv, "start")) {
-      start = getCmdLineArgumentInt(argc, argv, "start");
+      // start = getCmdLineArgumentInt(argc, argv, "start");
+      start = getCmdLineArgumentLonglong(argc, argv, "start");
 
       if (start <= 0) {
         printf("Illegal argument - start must be greater than zero\n");
@@ -355,7 +356,9 @@ int runTest(const int argc, const char **argv) {
     }
 
     if (checkCmdLineFlag(argc, (const char **)argv, "end")) {
-      end = getCmdLineArgumentInt(argc, argv, "end");
+      // end = getCmdLineArgumentInt(argc, argv, "end");
+      end = getCmdLineArgumentLonglong(argc, argv, "end");
+      printf("%lld\n", end);
 
       if (end <= 0) {
         printf("Illegal argument - end must be greater than zero\n");
@@ -373,7 +376,8 @@ int runTest(const int argc, const char **argv) {
     }
 
     if (checkCmdLineFlag(argc, argv, "increment")) {
-      increment = getCmdLineArgumentInt(argc, argv, "increment");
+      // increment = getCmdLineArgumentInt(argc, argv, "increment");
+      increment = getCmdLineArgumentLonglong(argc, argv, "increment");
 
       if (increment <= 0) {
         printf("Illegal argument - increment must be greater than zero\n");
@@ -387,31 +391,31 @@ int runTest(const int argc, const char **argv) {
   }
 
   if (htod) {
-    testBandwidth((unsigned int)start, (unsigned int)end,
-                  (unsigned int)increment, mode, HOST_TO_DEVICE, printmode,
+    testBandwidth((unsigned long long)start, (unsigned long long)end,
+                  (unsigned long long)increment, mode, HOST_TO_DEVICE, printmode,
                   memMode, startDevice, endDevice, wc);
   }
 
   if (dtoh) {
-    testBandwidth((unsigned int)start, (unsigned int)end,
-                  (unsigned int)increment, mode, DEVICE_TO_HOST, printmode,
+    testBandwidth((unsigned long long)start, (unsigned long long)end,
+                  (unsigned long long)increment, mode, DEVICE_TO_HOST, printmode,
                   memMode, startDevice, endDevice, wc);
   }
 
   if (intra) {
-    testBandwidth((unsigned int)start, (unsigned int)end,
-                  (unsigned int)increment, mode, INTRA_DEVICE, printmode, memMode,
+    testBandwidth((unsigned long long)start, (unsigned long long)end,
+                  (unsigned long long)increment, mode, INTRA_DEVICE, printmode, memMode,
                   startDevice, endDevice, wc);
   }
 
   if (inter) {
-    testBandwidth((unsigned int)start, (unsigned int)end,
-                  (unsigned int)increment, mode, INTER_DEVICE, printmode,
+    testBandwidth((unsigned long long)start, (unsigned long long)end,
+                  (unsigned long long)increment, mode, INTER_DEVICE, printmode,
                   memMode, startDevice, endDevice, wc);
   }
 
   // Ensure that we reset all CUDA Devices in question
-  for (int nDevice = startDevice; nDevice <= endDevice; nDevice++) {
+  for (long long nDevice = startDevice; nDevice <= endDevice; nDevice++) {
     cudaSetDevice(nDevice);
   }
 
@@ -421,9 +425,9 @@ int runTest(const int argc, const char **argv) {
 ///////////////////////////////////////////////////////////////////////////////
 //  Run a bandwidth test
 ///////////////////////////////////////////////////////////////////////////////
-void testBandwidth(unsigned int start, unsigned int end, unsigned int increment,
+void testBandwidth(unsigned long long start, unsigned long long end, unsigned long long increment,
                    testMode mode, memcpyKind kind, printMode printmode,
-                   memoryMode memMode, int startDevice, int endDevice,
+                   memoryMode memMode, long long startDevice, long long endDevice,
                    bool wc) {
   switch (mode) {
     case QUICK_MODE:
@@ -448,8 +452,8 @@ void testBandwidth(unsigned int start, unsigned int end, unsigned int increment,
 //////////////////////////////////////////////////////////////////////
 //  Run a quick mode bandwidth test
 //////////////////////////////////////////////////////////////////////
-void testBandwidthQuick(unsigned int size, memcpyKind kind, printMode printmode,
-                        memoryMode memMode, int startDevice, int endDevice,
+void testBandwidthQuick(unsigned long long size, memcpyKind kind, printMode printmode,
+                        memoryMode memMode, long long startDevice, long long endDevice,
                         bool wc) {
   testBandwidthRange(size, size, DEFAULT_INCREMENT, kind, printmode, memMode,
                      startDevice, endDevice, wc);
@@ -458,15 +462,15 @@ void testBandwidthQuick(unsigned int size, memcpyKind kind, printMode printmode,
 ///////////////////////////////////////////////////////////////////////
 //  Run a range mode bandwidth test
 //////////////////////////////////////////////////////////////////////
-void testBandwidthRange(unsigned int start, unsigned int end,
-                        unsigned int increment, memcpyKind kind,
+void testBandwidthRange(unsigned long long start, unsigned long long end,
+                        unsigned long long increment, memcpyKind kind,
                         printMode printmode, memoryMode memMode,
-                        int startDevice, int endDevice, bool wc) {
+                        long long startDevice, long long endDevice, bool wc) {
   // count the number of copies we're going to run
-  unsigned int count = 1 + ((end - start) / increment);
+  unsigned long long count = 1 + ((end - start) / increment);
 
-  unsigned int *memSizes = (unsigned int *)malloc(count * sizeof(unsigned int));
-  for (unsigned int i = 0; i < count; i++) {
+  unsigned long long *memSizes = (unsigned long long *)malloc(count * sizeof(unsigned long long));
+  for (unsigned long long i = 0; i < count; i++) {
     memSizes[i] = start + i * increment;
   }
 
@@ -480,10 +484,10 @@ void testBandwidthRange(unsigned int start, unsigned int end,
 // Intense shmoo mode - covers a large range of values with varying increments
 //////////////////////////////////////////////////////////////////////////////
 void testBandwidthShmoo(memcpyKind kind, printMode printmode,
-                        memoryMode memMode, int startDevice, int endDevice,
+                        memoryMode memMode, long long startDevice, long long endDevice,
                         bool wc) {
   // count the number of copies to make
-  unsigned int count =
+  unsigned long long count =
       1 + (SHMOO_LIMIT_20KB / SHMOO_INCREMENT_1KB) +
       ((SHMOO_LIMIT_50KB - SHMOO_LIMIT_20KB) / SHMOO_INCREMENT_2KB) +
       ((SHMOO_LIMIT_100KB - SHMOO_LIMIT_50KB) / SHMOO_INCREMENT_10KB) +
@@ -492,9 +496,9 @@ void testBandwidthShmoo(memcpyKind kind, printMode printmode,
       ((SHMOO_LIMIT_32MB - SHMOO_LIMIT_16MB) / SHMOO_INCREMENT_2MB) +
       ((SHMOO_MEMSIZE_MAX - SHMOO_LIMIT_32MB) / SHMOO_INCREMENT_4MB);
 
-  unsigned int *memSizes = (unsigned int *)malloc(count * sizeof(unsigned int));
+  unsigned long long *memSizes = (unsigned long long *)malloc(count * sizeof(unsigned long long));
 
-  unsigned int memSize = 0, iteration = 0;
+  unsigned long long memSize = 0, iteration = 0;
 
   while (memSize <= SHMOO_MEMSIZE_MAX) {
     if (memSize < SHMOO_LIMIT_20KB) {
@@ -525,33 +529,33 @@ void testBandwidthShmoo(memcpyKind kind, printMode printmode,
 ///////////////////////////////////////////////////////////////////////
 //  Run a array mode bandwidth test
 //////////////////////////////////////////////////////////////////////
-void testBandwidthArray(unsigned int *memSizes, unsigned int count,
+void testBandwidthArray(unsigned long long *memSizes, unsigned long long count,
                         memcpyKind kind, printMode printmode,
-                        memoryMode memMode, int startDevice, int endDevice,
+                        memoryMode memMode, long long startDevice, long long endDevice,
                         bool wc) {
   double *bandwidths = (double *)malloc(count * sizeof(double));
 
   // Before calculating the cumulative bandwidth, initialize bandwidths array to
   // NULL
-  for (unsigned int i = 0; i < count; i++) {
+  for (unsigned long long i = 0; i < count; i++) {
     bandwidths[i] = 0.0;
   }
 
   if (kind == INTER_DEVICE) {
     // run each of the copies
-    for (unsigned int i = 0; i < count; i++) {
+    for (unsigned long long i = 0; i < count; i++) {
       bandwidths[i] += testInterDeviceTransfer(memSizes[i], startDevice, endDevice);
       printf(".");
       fflush(0);
     }
   } else {
     // Use the device asked by the user
-    for (int currentDevice = startDevice; currentDevice <= endDevice;
+    for (long long currentDevice = startDevice; currentDevice <= endDevice;
          currentDevice++) {
       cudaSetDevice(currentDevice);
 
       // run each of the copies
-      for (unsigned int i = 0; i < count; i++) {
+      for (unsigned long long i = 0; i < count; i++) {
         switch (kind) {
           case DEVICE_TO_HOST:
             bandwidths[i] += testDeviceToHostTransfer(memSizes[i], memMode, wc);
@@ -589,7 +593,7 @@ void testBandwidthArray(unsigned int *memSizes, unsigned int count,
 ///////////////////////////////////////////////////////////////////////////////
 //  test the bandwidth of a device to host memcopy of a specific size
 ///////////////////////////////////////////////////////////////////////////////
-float testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode,
+float testDeviceToHostTransfer(unsigned long long memSize, memoryMode memMode,
                                bool wc) {
   StopWatchInterface *timer = NULL;
   float elapsedTimeInMs = 0.0f;
@@ -626,7 +630,7 @@ float testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode,
   }
 
   // initialize the memory
-  for (unsigned int i = 0; i < memSize / sizeof(unsigned char); i++) {
+  for (unsigned long long i = 0; i < memSize / sizeof(unsigned char); i++) {
     h_idata[i] = (unsigned char)(i & 0xff);
   }
 
@@ -642,7 +646,7 @@ float testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode,
   if (PINNED == memMode) {
     if (bDontUseGPUTiming) sdkStartTimer(&timer);
     checkCudaErrors(cudaEventRecord(start, 0));
-    for (unsigned int i = 0; i < MEMCOPY_ITERATIONS; i++) {
+    for (unsigned long long i = 0; i < MEMCOPY_ITERATIONS; i++) {
       checkCudaErrors(cudaMemcpyAsync(h_odata, d_idata, memSize,
                                       cudaMemcpyDeviceToHost, 0));
     }
@@ -656,7 +660,7 @@ float testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode,
     }
   } else {
     elapsedTimeInMs = 0;
-    for (unsigned int i = 0; i < MEMCOPY_ITERATIONS; i++) {
+    for (unsigned long long i = 0; i < MEMCOPY_ITERATIONS; i++) {
       sdkStartTimer(&timer);
       checkCudaErrors(
           cudaMemcpy(h_odata, d_idata, memSize, cudaMemcpyDeviceToHost));
@@ -692,7 +696,7 @@ float testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode,
 ///////////////////////////////////////////////////////////////////////////////
 //! test the bandwidth of a host to device memcopy of a specific size
 ///////////////////////////////////////////////////////////////////////////////
-float testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode,
+float testHostToDeviceTransfer(unsigned long long memSize, memoryMode memMode,
                                bool wc) {
   StopWatchInterface *timer = NULL;
   float elapsedTimeInMs = 0.0f;
@@ -733,11 +737,11 @@ float testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode,
   }
 
   // initialize the memory
-  for (unsigned int i = 0; i < memSize / sizeof(unsigned char); i++) {
+  for (unsigned long long i = 0; i < memSize / sizeof(unsigned char); i++) {
     h_odata[i] = (unsigned char)(i & 0xff);
   }
 
-  for (unsigned int i = 0; i < CACHE_CLEAR_SIZE / sizeof(unsigned char); i++) {
+  for (unsigned long long i = 0; i < CACHE_CLEAR_SIZE / sizeof(unsigned char); i++) {
     h_cacheClear1[i] = (unsigned char)(i & 0xff);
     h_cacheClear2[i] = (unsigned char)(0xff - (i & 0xff));
   }
@@ -750,7 +754,7 @@ float testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode,
   if (PINNED == memMode) {
     if (bDontUseGPUTiming) sdkStartTimer(&timer);
     checkCudaErrors(cudaEventRecord(start, 0));
-    for (unsigned int i = 0; i < MEMCOPY_ITERATIONS; i++) {
+    for (unsigned long long i = 0; i < MEMCOPY_ITERATIONS; i++) {
       checkCudaErrors(cudaMemcpyAsync(d_idata, h_odata, memSize,
                                       cudaMemcpyHostToDevice, 0));
     }
@@ -764,7 +768,7 @@ float testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode,
     }
   } else {
     elapsedTimeInMs = 0;
-    for (unsigned int i = 0; i < MEMCOPY_ITERATIONS; i++) {
+    for (unsigned long long i = 0; i < MEMCOPY_ITERATIONS; i++) {
       sdkStartTimer(&timer);
       checkCudaErrors(
           cudaMemcpy(d_idata, h_odata, memSize, cudaMemcpyHostToDevice));
@@ -800,7 +804,7 @@ float testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode,
 ///////////////////////////////////////////////////////////////////////////////
 //! test the bandwidth of a Intra Device memcopy of a specific size
 ///////////////////////////////////////////////////////////////////////////////
-float testIntraDeviceTransfer(unsigned int memSize) {
+float testIntraDeviceTransfer(unsigned long long memSize) {
   StopWatchInterface *timer = NULL;
   float elapsedTimeInMs = 0.0f;
   float bandwidthInGBs = 0.0f;
@@ -819,7 +823,7 @@ float testIntraDeviceTransfer(unsigned int memSize) {
   }
 
   // initialize the host memory
-  for (unsigned int i = 0; i < memSize / sizeof(unsigned char); i++) {
+  for (unsigned long long i = 0; i < memSize / sizeof(unsigned char); i++) {
     h_idata[i] = (unsigned char)(i & 0xff);
   }
 
@@ -837,7 +841,7 @@ float testIntraDeviceTransfer(unsigned int memSize) {
   sdkStartTimer(&timer);
   checkCudaErrors(cudaEventRecord(start, 0));
 
-  for (unsigned int i = 0; i < MEMCOPY_ITERATIONS; i++) {
+  for (unsigned long long i = 0; i < MEMCOPY_ITERATIONS; i++) {
     checkCudaErrors(
         cudaMemcpy(d_odata, d_idata, memSize, cudaMemcpyDeviceToDevice));
   }
@@ -876,7 +880,7 @@ float testIntraDeviceTransfer(unsigned int memSize) {
 ///////////////////////////////////////////////////////////////////////////////
 //! test the bandwidth of a Inter Device memcopy of a specific size
 ///////////////////////////////////////////////////////////////////////////////
-float testInterDeviceTransfer(unsigned int memSize, int startDevice, int endDevice) {
+float testInterDeviceTransfer(unsigned long long memSize, long long startDevice, long long endDevice) {
   StopWatchInterface *timer = NULL;
   float elapsedTimeInMs = 0.0f;
   float bandwidthInGBs = 0.0f;
@@ -902,7 +906,7 @@ float testInterDeviceTransfer(unsigned int memSize, int startDevice, int endDevi
   }
 
   // initialize the host memory
-  for (unsigned int i = 0; i < memSize / sizeof(unsigned char); i++) {
+  for (unsigned long long i = 0; i < memSize / sizeof(unsigned char); i++) {
     h_idata[i] = (unsigned char)(i & 0xff);
   }
 
@@ -928,7 +932,7 @@ float testInterDeviceTransfer(unsigned int memSize, int startDevice, int endDevi
   sdkStartTimer(&timer);
   checkCudaErrors(cudaEventRecord(start, 0));
 
-  for (unsigned int i = 0; i < MEMCOPY_ITERATIONS; i++) {
+  for (unsigned long long i = 0; i < MEMCOPY_ITERATIONS; i++) {
     checkCudaErrors(
         cudaMemcpyPeerAsync(d_odata_0, endDevice, d_idata_0, startDevice, memSize, streams[0]));
     checkCudaErrors(
@@ -976,9 +980,9 @@ float testInterDeviceTransfer(unsigned int memSize, int startDevice, int endDevi
 /////////////////////////////////////////////////////////
 // print results in an easily read format
 ////////////////////////////////////////////////////////
-void printResultsReadable(unsigned int *memSizes, double *bandwidths,
-                          unsigned int count, memcpyKind kind,
-                          memoryMode memMode, int iNumDevs, bool wc) {
+void printResultsReadable(unsigned long long *memSizes, double *bandwidths,
+                          unsigned long long count, memcpyKind kind,
+                          memoryMode memMode, long long iNumDevs, bool wc) {
   printf(" %s Bandwidth, %i Device(s)\n", sMemoryCopyKind[kind], iNumDevs);
   printf(" %s Memory Transfers\n", sMemoryMode[memMode]);
 
@@ -987,23 +991,23 @@ void printResultsReadable(unsigned int *memSizes, double *bandwidths,
   }
 
   printf("   Transfer Size (Bytes)\tBandwidth(GB/s)\n");
-  unsigned int i;
+  unsigned long long i;
 
   for (i = 0; i < (count - 1); i++) {
-    printf("   %u\t\t\t%s%.1f\n", memSizes[i],
+    printf("   %llu\t\t\t%s%.1f\n", memSizes[i],
            (memSizes[i] < 10000) ? "\t" : "", bandwidths[i]);
   }
 
-  printf("   %u\t\t\t%s%.1f\n\n", memSizes[i],
+  printf("   %llu\t\t\t%s%.1f\n\n", memSizes[i],
          (memSizes[i] < 10000) ? "\t" : "", bandwidths[i]);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // print results in a database format
 ///////////////////////////////////////////////////////////////////////////
-void printResultsCSV(unsigned int *memSizes, double *bandwidths,
-                     unsigned int count, memcpyKind kind, memoryMode memMode,
-                     int iNumDevs, bool wc) {
+void printResultsCSV(unsigned long long *memSizes, double *bandwidths,
+                     unsigned long long count, memcpyKind kind, memoryMode memMode,
+                     long long iNumDevs, bool wc) {
   std::string sConfig;
 
   // log config information
@@ -1029,14 +1033,14 @@ void printResultsCSV(unsigned int *memSizes, double *bandwidths,
     }
   }
 
-  unsigned int i;
+  unsigned long long i;
   double dSeconds = 0.0;
 
   for (i = 0; i < count; i++) {
     dSeconds = (double)memSizes[i] / (bandwidths[i] * (double)(1e9));
     printf(
-        "bandwidthTest-%s, Bandwidth = %.1f GB/s, Time = %.5f s, Size = %u "
-        "bytes, NumDevsUsed = %d\n",
+        "bandwidthTest-%s, Bandwidth = %.1f GB/s, Time = %.5f s, Size = %llu "
+        "bytes, NumDevsUsed = %lld\n",
         sConfig.c_str(), bandwidths[i], dSeconds, memSizes[i], iNumDevs);
   }
 }

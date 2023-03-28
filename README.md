@@ -60,3 +60,8 @@ The samples makefiles can take advantage of certain options:
 ```
 ./bandwidthTest --help
 ```
+## Example
+
+```
+./bandwidthTest --device=2,3 --inter --memory=pinned --mode=range --start=1000000000 --end=50000000000 --increment=10000000000
+```
